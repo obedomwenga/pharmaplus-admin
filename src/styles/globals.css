@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #4f46e5;
+  --secondary-color: #10b981;
+  --accent-color: #f97316;
+  --background-color: #f9fafb;
+  --text-color: #1f2937;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.bg-primary {
+  background-color: var(--primary-color);
+}
+
+.text-primary {
+  color: var(--primary-color);
+}
+
+.bg-secondary {
+  background-color: var(--secondary-color);
+}
+
+.text-secondary {
+  color: var(--secondary-color);
+}
+
+.border-primary {
+  border-color: var(--primary-color);
+}
+
+.hover\:bg-primary-dark:hover {
+  background-color: #4338ca;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Fix heading sizes */
+h1.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+h2.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+/* Improve layout for mobile devices */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 14rem;
+  }
+  
+  .main-content {
+    margin-left: 14rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    width: 12rem;
+  }
+  
+  .main-content {
+    margin-left: 12rem;
+  }
+} 

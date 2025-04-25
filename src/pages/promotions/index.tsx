@@ -12,6 +12,7 @@ import {
   FormErrors, 
   AlertMessage 
 } from '@/types/promotion';
+import Link from 'next/link';
 
 // Dummy product data
 const dummyProducts: Product[] = [
@@ -754,7 +755,9 @@ export default function PromotionsPage() {
                         {promotions.map((promotion) => (
                           <tr key={promotion.id} className="hover:bg-pharma-gray-light transition-colors">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-text-primary">{promotion.name}</div>
+                              <Link href={`/promotions/${promotion.id}`}>
+                                <div className="text-sm font-medium text-text-primary hover:text-pharma-green hover:underline cursor-pointer">{promotion.name}</div>
+                              </Link>
                               <div className="text-xs text-text-muted mt-1">{promotion.description && promotion.description.length > 40 ? `${promotion.description.substring(0, 40)}...` : promotion.description}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -783,6 +786,9 @@ export default function PromotionsPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <Link href={`/promotions/${promotion.id}`}>
+                                <span className="text-pharma-blue hover:text-blue-700 cursor-pointer">View</span>
+                              </Link>
                               <button 
                                 onClick={() => handleDeletePromotion(promotion.id || '')}
                                 className="text-red-600 hover:text-red-900 ml-4"

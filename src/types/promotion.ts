@@ -38,4 +38,5 @@ export interface PromotionFormData {
   is_active: boolean;
   files: File[];
   createdAt?: string;
+  claimed?: number;
 } 

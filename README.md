@@ -103,18 +103,7 @@ pharma-nextjs/
 - **Adding new components**: Create a new file in the `components` directory
 - **Adding new styles**: Add styles to the appropriate component or in `styles/globals.css`
 
-## Stack Comparison (Vue vs Next.js/React)
 
-| Feature | Original Vue.js Implementation | New Next.js/React Implementation |
-|---------|--------------------------------|----------------------------------|
-| Framework | Vue.js | Next.js (React framework) |
-| Language | JavaScript | TypeScript |
-| Styling | Tailwind CSS | Tailwind CSS |
-| Routing | Vue Router | Next.js Pages Router |
-| State Management | Vue Composition API | React Hooks |
-| Form Handling | Vue Reactive Forms | React Hook Form |
-| Component Structure | Single File Components (.vue) | Functional Components (.tsx) |
-| Type Safety | Limited | Full TypeScript integration |
 
 ## SEO and Metadata
 

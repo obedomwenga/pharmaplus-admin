@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getPromotions } from '@/utils/helpers';
-import { PromotionFormData } from '@/types/promotion';
+import { getPromotions, updatePromotion, formatFileSize } from '@/utils/helpers';
+import { PromotionFormData, FileMetadata } from '@/types/promotion';
 
 export default function PromotionDetails() {
   const router = useRouter();
@@ -12,30 +12,73 @@ export default function PromotionDetails() {
   const [loading, setLoading] = useState(true);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [daysActive, setDaysActive] = useState<number>(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   
   // Load promotion data
   useEffect(() => {
     if (id) {
-      const promotions = getPromotions();
-      const foundPromotion = promotions.find(p => p.id === id);
-      
-      if (foundPromotion) {
-        setPromotion(foundPromotion);
-        
-        // Calculate days active
-        const startDate = new Date(foundPromotion.start_datetime);
-        const now = new Date();
-        const differenceInTime = now.getTime() - startDate.getTime();
-        const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
-        setDaysActive(differenceInDays > 0 ? differenceInDays : 0);
-        
-        // Random number of claimed promotions (for demo)
-        const claimed = Math.floor(Math.random() * 50);
-        foundPromotion.claimed = claimed;
-      }
-      setLoading(false);
+      loadPromotionData();
     }
   }, [id]);
+  
+  // Load promotion data function
+  const loadPromotionData = () => {
+    const promotions = getPromotions();
+    const foundPromotion = promotions.find(p => p.id === id);
+    
+    if (foundPromotion) {
+      setPromotion(foundPromotion);
+      
+      // Calculate days active
+      const startDate = new Date(foundPromotion.start_datetime);
+      const now = new Date();
+      const differenceInTime = now.getTime() - startDate.getTime();
+      const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
+      setDaysActive(differenceInDays > 0 ? differenceInDays : 0);
+      
+      // Random number of claimed promotions (for demo)
+      const claimed = Math.floor(Math.random() * 50);
+      foundPromotion.claimed = claimed;
+    }
+    setLoading(false);
+  };
+  
+  // Handle refresh button click
+  const handleRefresh = () => {
+    setLoading(true);
+    loadPromotionData();
+    
+    // Show success message
+    setAlertMessage({
+      message: 'Promotion data refreshed successfully',
+      type: 'success'
+    });
+  };
+  
+  // Toggle promotion status
+  const toggleStatus = () => {
+    if (!promotion) return;
+    
+    const updatedPromotion = {
+      ...promotion,
+      is_active: !promotion.is_active
+    };
+    
+    updatePromotion(updatedPromotion);
+    setPromotion(updatedPromotion);
+    
+    // Show success message
+    setAlertMessage({
+      message: `Promotion ${updatedPromotion.is_active ? 'activated' : 'deactivated'} successfully`,
+      type: 'success'
+    });
+    
+    // Clear message after 3 seconds
+    setTimeout(() => {
+      setAlertMessage(null);
+    }, 3000);
+  };
   
   // Update time remaining
   useEffect(() => {
@@ -118,26 +161,71 @@ export default function PromotionDetails() {
               <h1 className="text-2xl font-bold text-white">{promotion.name}</h1>
               <p className="text-green-100 mt-1 opacity-90">Promotion Details</p>
             </div>
-            <Link href="/promotions">
-              <span className="px-4 py-2 bg-white text-pharma-green rounded-md hover:bg-green-50">
-                Back to Promotions
-              </span>
-            </Link>
+            <div className="flex space-x-3">
+              <button 
+                onClick={handleRefresh}
+                className="px-4 py-2 bg-white text-pharma-green rounded-md hover:bg-green-50 flex items-center shadow-sm transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+              <Link href={`/promotions/edit/${promotion.id}`}>
+                <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 shadow-sm transition-colors flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
+                </span>
+              </Link>
+              <Link href="/promotions">
+                <span className="px-4 py-2 bg-white text-pharma-green rounded-md hover:bg-green-50 shadow-sm transition-colors flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back
+                </span>
+              </Link>
+            </div>
           </div>
         </div>
         
         <div className="p-6 md:p-8">
+          {/* Alert Message */}
+          {alertMessage && (
+            <div className={`mb-6 p-4 rounded-md ${
+              alertMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {alertMessage.message}
+            </div>
+          )}
+          
           {/* Status Card */}
           <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
               <h2 className="text-xl font-semibold text-text-primary">Status Overview</h2>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                promotion.is_active 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {promotion.is_active ? 'Active' : 'Inactive'}
-              </span>
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-text-secondary mr-2">Status:</span>
+                <button 
+                  onClick={toggleStatus}
+                  className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
+                >
+                  <span 
+                    className={`inline-flex absolute inset-0 ${
+                      promotion.is_active ? 'bg-green-100' : 'bg-gray-100'
+                    } rounded-full transition-colors`}
+                  />
+                  <span 
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm border ${
+                      promotion.is_active ? 'translate-x-6 border-green-500' : 'translate-x-1 border-gray-400'
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm ${promotion.is_active ? 'text-green-600' : 'text-gray-500'}`}>
+                  {promotion.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -185,6 +273,18 @@ export default function PromotionDetails() {
               <div>
                 <h3 className="text-sm font-medium text-text-secondary">Description</h3>
                 <p className="mt-1 text-text-primary">{promotion.description}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-text-secondary">Promotion Type</h3>
+                <p className="mt-1 text-text-primary">
+                  {promotion.promotion_type === 'PHARMAPLUS' ? 'PharmaPlus Promotion' : 'Partner Promotion'}
+                  {promotion.promotion_type === 'PARTNER' && promotion.partner_name && (
+                    <span className="ml-2 text-pharma-blue">
+                      (Partner: {promotion.partner_name})
+                    </span>
+                  )}
+                </p>
               </div>
               
               <div>
@@ -242,25 +342,134 @@ export default function PromotionDetails() {
             </div>
           </div>
           
+          {/* Applied Products */}
+          <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+            <h2 className="text-xl font-semibold text-text-primary mb-4">Applied Products</h2>
+            
+            <div className="mb-2">
+              <h3 className="text-sm font-medium text-text-secondary">Type</h3>
+              <p className="mt-1 text-text-primary">
+                {promotion.apply_to === 'PRODUCT' ? 'Individual Products' : 'Product Bundle'}
+              </p>
+            </div>
+            
+            {/* Display product codes */}
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-text-secondary mb-2">Product Codes</h3>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {promotion.apply_to === 'PRODUCT' ? (
+                  promotion.target_identifiers.map((id, index) => (
+                    <span key={index} className="bg-pharma-gray-light px-3 py-1 rounded-md text-sm">
+                      {id}
+                    </span>
+                  ))
+                ) : (
+                  promotion.bundledProductCodes.map((id, index) => (
+                    <span key={index} className="bg-pharma-gray-light px-3 py-1 rounded-md text-sm">
+                      {id}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Terms and Conditions */}
+          {promotion.terms_and_conditions && (
+            <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+              <h2 className="text-xl font-semibold text-text-primary mb-4">Terms and Conditions</h2>
+              <p className="text-text-secondary whitespace-pre-line">{promotion.terms_and_conditions}</p>
+            </div>
+          )}
+          
+          {/* Promotion Rules */}
+          {promotion.rules && (
+            <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+              <h2 className="text-xl font-semibold text-text-primary mb-4">Promotion Rules</h2>
+              <p className="text-text-secondary whitespace-pre-line">{promotion.rules}</p>
+            </div>
+          )}
+          
           {/* Promotional Materials */}
           {promotion.files && promotion.files.length > 0 && (
             <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card">
               <h2 className="text-xl font-semibold text-text-primary mb-4">Promotional Materials</h2>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {/* This is a placeholder since we can't actually display the files */}
-                <div className="border border-pharma-gray-dark rounded-md p-4 flex items-center space-x-3">
-                  <div className="text-pharma-gray-darker">
-                    <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              {/* Image Gallery */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {promotion.files.map((file, index) => {
+                  const fileData = file as FileMetadata;
+                  // Check if type exists before using includes
+                  const isImage = fileData.type ? fileData.type.includes('image') : false;
+                  
+                  return (
+                    <div key={index} className="border border-pharma-gray-dark rounded-lg overflow-hidden shadow-sm">
+                      {isImage ? (
+                        <div className="aspect-w-16 aspect-h-9 bg-white">
+                          <div className="flex items-center justify-center h-48 bg-gray-50">
+                            {/* In a real app with backend storage, we would use the file URL */}
+                            <div className="relative w-full h-full">
+                              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-pharma-gray-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80">
+                                <div className="text-center px-4">
+                                  <div className="w-full h-32 bg-pharma-gray-light rounded-md flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-pharma-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-48 bg-pharma-gray-light p-4">
+                          <div className="text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-pharma-green-dark mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p className="mt-2 text-sm font-medium text-pharma-green">Document</p>
+                            <p className="text-xs text-text-muted">
+                              {fileData.type && fileData.type.split('/')[1]?.toUpperCase() || 'File'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="p-3 border-t border-pharma-gray-dark bg-white">
+                        <p className="text-sm font-medium text-text-primary truncate">{fileData.name}</p>
+                        <p className="text-xs text-text-muted">{formatFileSize(fileData.size || 0)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="mt-6 py-4 px-6 bg-pharma-gray-light rounded-lg">
+                <p className="text-sm text-pharma-gray-darker">
+                  <span className="font-medium">Note:</span> In a production environment with server storage, actual images would be displayed here.
+                  For the demo version, we're showing placeholders for the uploaded files.
+                </p>
+              </div>
+              
+              {/* Terms File Display (if any) */}
+              {promotion.terms_file && (
+                <div className="mt-8">
+                  <h3 className="font-medium text-text-primary mb-2">Terms & Conditions Document</h3>
+                  <div className="flex items-center p-3 border border-pharma-gray-dark rounded-md bg-pharma-gray-light">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-pharma-green-dark mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
+                    <div>
+                      <p className="text-sm font-medium">{promotion.terms_file.name}</p>
+                      <p className="text-xs text-text-muted">{formatFileSize(promotion.terms_file.size)}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">Promotional File</p>
-                    <p className="text-xs text-text-muted">File would be displayed here</p>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

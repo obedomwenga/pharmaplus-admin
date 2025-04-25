@@ -32,13 +32,14 @@ const dummyProducts: Product[] = [
 
 export default function PromotionsPage() {
   // Active tab state
-  const [activeTab, setActiveTab] = useState<'create' | 'list'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'list'>('list');
 
   // Form state using react-hook-form
   const { register, handleSubmit, setValue, watch, formState: { errors: formValidationErrors } } = useForm<PromotionFormData>({
     defaultValues: {
       name: '',
       description: '',
+      promotion_type: 'PHARMAPLUS',
       discount_type: 'PERCENTAGE',
       discount_value: 0,
       apply_to: 'PRODUCT',
@@ -50,7 +51,11 @@ export default function PromotionsPage() {
       start_datetime: formatDateForInput(new Date()),
       end_datetime: formatDateForInput(addDaysToDate(new Date(), 30)),
       is_active: true,
-      files: []
+      files: [],
+      terms_and_conditions: '',
+      rules: '',
+      partner_name: '',
+      partner_logo: undefined
     }
   });
 
@@ -65,17 +70,62 @@ export default function PromotionsPage() {
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   const [products, setProducts] = useState<Product[]>(dummyProducts);
   const [formFiles, setFormFiles] = useState<File[]>([]);
+  const [fileUploading, setFileUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [termsFile, setTermsFile] = useState<File | null>(null);
   
   const applyTo = watch('apply_to');
   const discountType = watch('discount_type');
   
   // Promotions list state
   const [promotions, setPromotions] = useState<PromotionFormData[]>([]);
+  const [filteredPromotions, setFilteredPromotions] = useState<PromotionFormData[]>([]);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'expired' | 'inactive'>('all');
   
   // Load promotions from localStorage
   const loadPromotions = () => {
     const storedPromotions = getPromotions();
     setPromotions(storedPromotions);
+    applyFilter(storedPromotions, activeFilter);
+  };
+  
+  // Handle refresh button click
+  const handleRefresh = () => {
+    loadPromotions();
+    showAlert('Promotions list refreshed', 'success');
+  };
+  
+  // Apply filter to promotions
+  const applyFilter = (promotionsList: PromotionFormData[], filter: string) => {
+    const now = new Date();
+    
+    switch(filter) {
+      case 'active':
+        setFilteredPromotions(promotionsList.filter(p => 
+          p.is_active && new Date(p.end_datetime) > now
+        ));
+        break;
+      case 'expired':
+        setFilteredPromotions(promotionsList.filter(p => 
+          new Date(p.end_datetime) < now
+        ));
+        break;
+      case 'inactive':
+        setFilteredPromotions(promotionsList.filter(p => 
+          !p.is_active && new Date(p.end_datetime) > now
+        ));
+        break;
+      case 'all':
+      default:
+        setFilteredPromotions(promotionsList);
+        break;
+    }
+  };
+  
+  // Change filter
+  const handleFilterChange = (filter: 'all' | 'active' | 'expired' | 'inactive') => {
+    setActiveFilter(filter);
+    applyFilter(promotions, filter);
   };
   
   // Delete promotion
@@ -166,10 +216,69 @@ export default function PromotionsPage() {
 
   // Handle file upload
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("File upload triggered");
+    
     if (event.target.files) {
-      const newFiles = Array.from(event.target.files);
-      setFormFiles(prev => [...prev, ...newFiles]);
-      event.target.value = '';
+      try {
+        const newFiles = Array.from(event.target.files);
+        console.log("Files selected:", newFiles.map(f => ({ name: f.name, type: f.type, size: f.size })));
+        
+        // Simulate upload progress
+        setFileUploading(true);
+        setUploadProgress(0);
+        
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 10;
+          setUploadProgress(progress);
+          
+          if (progress >= 100) {
+            clearInterval(interval);
+            setFormFiles(prev => {
+              const updatedFiles = [...prev, ...newFiles];
+              console.log("Updated form files:", updatedFiles);
+              return updatedFiles;
+            });
+            setFileUploading(false);
+            event.target.value = '';
+          }
+        }, 200);
+      } catch (error) {
+        console.error("Error during file upload:", error);
+        showAlert('Error uploading files. Please try again.', 'error');
+        setFileUploading(false);
+        event.target.value = '';
+      }
+    } else {
+      console.log("No files selected");
+    }
+  };
+  
+  // Handle terms file upload
+  const handleTermsFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setTermsFile(file);
+      
+      // Read the file contents if it's a text file
+      if (file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          setValue('terms_and_conditions', content);
+        };
+        reader.readAsText(file);
+      } else if (file.type === 'application/pdf') {
+        // For PDFs we just store the file and don't attempt to read/display contents
+        setValue('terms_and_conditions', `Terms and conditions from file: ${file.name}`);
+      }
+      
+      // Store file metadata for form submission
+      setValue('terms_file', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
     }
   };
 
@@ -214,7 +323,10 @@ export default function PromotionsPage() {
 
   // Submit form
   const onSubmit = async (data: PromotionFormData) => {
+    console.log("Form submitted with data:", data);
+    
     if (!validateForm(data)) {
+      console.log("Form validation failed with errors:", formErrors);
       showAlert('Please fix the errors in the form.', 'error');
       return;
     }
@@ -222,32 +334,45 @@ export default function PromotionsPage() {
     setIsSubmitting(true);
     
     try {
-      // Create FormData object for multipart/form-data submission
-      const formData = new FormData();
+      console.log("Creating dataForStorage with formFiles:", formFiles);
       
-      // Add form fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (key === 'files') {
-          // Handle files separately
-          formFiles.forEach(file => {
-            formData.append('files', file);
-          });
-        } else if (key === 'target_identifiers' || key === 'bundledProductCodes') {
-          // Only include the relevant field based on promotion type
-          if ((key === 'target_identifiers' && data.apply_to === 'PRODUCT') || 
-              (key === 'bundledProductCodes' && data.apply_to === 'BUNDLE')) {
-            formData.append(key, JSON.stringify(value));
+      // File objects can't be saved to localStorage directly
+      // Create a copy of data without file objects
+      const dataForStorage = {
+        ...data,
+        // Store only the file names instead of file objects
+        files: formFiles.map(file => {
+          console.log("Processing file:", file);
+          try {
+            return { 
+              name: file.name, 
+              size: file.size, 
+              type: file.type 
+            };
+          } catch (fileErr) {
+            console.error("Error processing file:", file, fileErr);
+            return { name: "Unknown file", size: 0, type: "application/octet-stream" };
           }
-        } else {
-          formData.append(key, String(value));
-        }
-      });
+        }),
+        // Handle partner logo similarly if it exists
+        partner_logo: data.partner_logo ? (() => {
+          try {
+            return { 
+              name: data.partner_logo.name, 
+              size: data.partner_logo.size, 
+              type: data.partner_logo.type 
+            };
+          } catch (logoErr) {
+            console.error("Error processing partner logo:", data.partner_logo, logoErr);
+            return undefined;
+          }
+        })() : undefined
+      };
       
-      // Instead of sending to API, just log the form data and save to localStorage
-      console.log('Form would be submitted with these values:', data);
+      console.log("Final dataForStorage:", dataForStorage);
       
       // Save promotion to localStorage
-      savePromotion(data);
+      savePromotion(dataForStorage);
       
       // Reload promotions list
       loadPromotions();
@@ -287,6 +412,8 @@ export default function PromotionsPage() {
     setValue('start_datetime', formatDateForInput(new Date()));
     setValue('end_datetime', formatDateForInput(addDaysToDate(new Date(), 30)));
     setValue('is_active', true);
+    setValue('partner_name', '');
+    setValue('partner_logo', undefined);
     
     // Reset other state
     setSelectedProducts([]);
@@ -357,9 +484,15 @@ export default function PromotionsPage() {
         <div className="p-6 md:p-8">
           {activeTab === 'create' ? (
             <>
+              {/* Form Title */}
+              <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+                <h2 className="text-xl font-semibold text-text-primary">Create New Promotion</h2>
+                <p className="text-text-muted mt-2">Fill out the form below to create a new promotional campaign.</p>
+              </div>
+
               {/* Promotion Type Selector */}
-              <div className="mb-8">
-                <label className="block text-sm font-medium text-text-secondary mb-2">Promotion Type</label>
+              <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+                <h2 className="text-lg font-semibold text-text-primary mb-5">Promotion Type</h2>
                 <div className="flex bg-pharma-gray rounded-lg p-1 w-64 shadow-sm">
                   <button 
                     onClick={() => setValue('apply_to', 'PRODUCT')} 
@@ -384,6 +517,11 @@ export default function PromotionsPage() {
                     BUNDLE
                   </button>
                 </div>
+                <p className="text-sm text-text-muted mt-2">
+                  {applyTo === 'PRODUCT' 
+                    ? 'Apply promotion to individual product(s)' 
+                    : 'Create a bundle of products for promotion'}
+                </p>
               </div>
 
               {/* Form */}
@@ -393,294 +531,540 @@ export default function PromotionsPage() {
                   <h2 className="text-lg font-semibold text-text-primary mb-5">Basic Information</h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="space-y-2">
-                      <label htmlFor="name" className="block text-sm font-medium text-text-secondary">Promotion Name</label>
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary" htmlFor="promotion-name">Promotion Name</label>
                       <input
                         type="text"
-                        id="name"
-                        {...register('name', { required: true })}
-                        className={`w-full p-2 border rounded-md focus:ring-pharma-green focus:border-pharma-green transition-colors ${
-                          formErrors.name ? 'border-state-error ring-1 ring-state-error' : 'border-pharma-gray-darker'
-                        }`}
+                        id="promotion-name"
+                        className={`mt-1 block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm ${formErrors.name ? 'border-red-500' : ''}`}
+                        placeholder="Summer Sale"
+                        {...register('name')}
                       />
-                      {formErrors.name && <p className="text-state-error text-xs">{formErrors.name}</p>}
+                      {formErrors.name && <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary" htmlFor="promotion-description">Description</label>
+                      <textarea
+                        id="promotion-description"
+                        rows={3}
+                        className={`mt-1 block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm ${formErrors.description ? 'border-red-500' : ''}`}
+                        placeholder="Details about the promotion"
+                        {...register('description')}
+                      ></textarea>
+                      {formErrors.description && <p className="mt-1 text-sm text-red-600">{formErrors.description}</p>}
+                    </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label htmlFor="discount_type" className="block text-sm font-medium text-text-secondary">Discount Type</label>
-                      <select
-                        id="discount_type"
-                        {...register('discount_type')}
-                        className="w-full p-2 border border-pharma-gray-darker rounded-md focus:ring-pharma-green focus:border-pharma-green bg-white"
-                      >
-                        <option value="PERCENTAGE">Percentage</option>
-                        <option value="FIXED">Fixed Amount</option>
-                      </select>
+                  {/* Promotion Type */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
+                      Promotion Type
+                    </label>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center">
+                        <input
+                          id="promotion-type-pharmaplus"
+                          type="radio"
+                          value="PHARMAPLUS"
+                          className="h-4 w-4 text-pharma-green border-pharma-gray-dark focus:ring-pharma-green"
+                          {...register('promotion_type')}
+                          defaultChecked
+                        />
+                        <label htmlFor="promotion-type-pharmaplus" className="ml-3 block text-sm text-text-primary">
+                          PharmaPlus Promotion
+                        </label>
+                      </div>
+                      <div className="flex items-center">
+                        <input
+                          id="promotion-type-partner"
+                          type="radio"
+                          value="PARTNER"
+                          className="h-4 w-4 text-pharma-green border-pharma-gray-dark focus:ring-pharma-green"
+                          {...register('promotion_type')}
+                        />
+                        <label htmlFor="promotion-type-partner" className="ml-3 block text-sm text-text-primary">
+                          Partner Promotion
+                        </label>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="space-y-2">
-                      <label htmlFor="discount_value" className="block text-sm font-medium text-text-secondary">
-                        Discount Value {discountType === 'PERCENTAGE' ? '(%)' : '(Ksh)'}
-                      </label>
-                      <input
-                        type="number"
-                        id="discount_value"
-                        {...register('discount_value', { 
-                          required: true,
-                          min: 0,
-                          max: discountType === 'PERCENTAGE' ? 100 : undefined
-                        })}
-                        className={`w-full p-2 border rounded-md focus:ring-pharma-green focus:border-pharma-green transition-colors ${
-                          formErrors.discount_value ? 'border-state-error ring-1 ring-state-error' : 'border-pharma-gray-darker'
-                        }`}
-                      />
-                      {formErrors.discount_value && <p className="text-state-error text-xs">{formErrors.discount_value}</p>}
+                  
+                  {/* Partner Information (conditional) */}
+                  {watch('promotion_type') === 'PARTNER' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 p-4 bg-pharma-gray-light rounded-md border border-pharma-gray-dark">
+                      <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1" htmlFor="partner-name">
+                          Partner Name
+                        </label>
+                        <input
+                          type="text"
+                          id="partner-name"
+                          className="block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm"
+                          placeholder="Enter partner company name"
+                          {...register('partner_name')}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">
+                          Partner Logo (optional)
+                        </label>
+                        <input
+                          type="file"
+                          className="block w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-pharma-green file:text-white hover:file:bg-pharma-green-dark"
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setValue('partner_logo', e.target.files[0]);
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="is_active" className="block text-sm font-medium text-text-secondary">Status</label>
-                      <div className="flex items-center space-x-3 h-10 mt-1">
-                        <span className="text-sm text-text-muted">Inactive</span>
-                        <button 
-                          type="button"
-                          onClick={() => setValue('is_active', !watch('is_active'))}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                            watch('is_active') ? 'bg-pharma-green' : 'bg-pharma-gray-darker'
-                          }`}
-                        >
-                          <span 
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
-                              watch('is_active') ? 'translate-x-6' : 'translate-x-1'
+                  )}
+                  
+                  {/* Discount Information */}
+                  <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+                    <h2 className="text-lg font-semibold text-text-primary mb-5">Discount Information</h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label htmlFor="discount_type" className="block text-sm font-medium text-text-secondary mb-2">Discount Type</label>
+                        <div className="relative">
+                          <select
+                            id="discount_type"
+                            {...register('discount_type')}
+                            className="block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm appearance-none pl-3 pr-10 py-2"
+                          >
+                            <option value="PERCENTAGE">Percentage Discount (%)</option>
+                            <option value="FIXED">Fixed Amount (KSH)</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {discountType === 'PERCENTAGE' 
+                            ? 'Percentage discount applied to the product price' 
+                            : 'Fixed amount discount in KSH'}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="discount_value" className="block text-sm font-medium text-text-secondary mb-2">
+                          Discount Value {discountType === 'PERCENTAGE' ? '(%)' : '(KSH)'}
+                        </label>
+                        <div className="relative mt-1 rounded-md shadow-sm">
+                          <input
+                            type="number"
+                            id="discount_value"
+                            {...register('discount_value')}
+                            min="0"
+                            max={discountType === 'PERCENTAGE' ? "100" : undefined}
+                            className={`block w-full rounded-md shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm pl-3 pr-12 py-2 ${
+                              formErrors.discount_value 
+                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                                : 'border-pharma-gray-dark'
                             }`}
+                            placeholder={discountType === 'PERCENTAGE' ? "e.g. 15" : "e.g. 500"}
                           />
-                        </button>
-                        <span className="text-sm text-text-muted">Active</span>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <span className="text-gray-500 sm:text-sm">
+                              {discountType === 'PERCENTAGE' ? '%' : 'KSH'}
+                            </span>
+                          </div>
+                        </div>
+                        {formErrors.discount_value && (
+                          <p className="mt-1 text-sm text-red-600">{formErrors.discount_value}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 pt-6 border-t border-pharma-gray">
+                      <div>
+                        <label htmlFor="is_active" className="block text-sm font-medium text-text-secondary mb-2">Status</label>
+                        <div className="flex items-center space-x-3">
+                          <button 
+                            type="button"
+                            onClick={() => setValue('is_active', !watch('is_active'))}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                              watch('is_active') ? 'bg-pharma-green' : 'bg-pharma-gray-darker'
+                            }`}
+                          >
+                            <span 
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                                watch('is_active') ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                          <span className="text-sm text-text-secondary">
+                            {watch('is_active') ? 'Active - Promotion will be live immediately' : 'Inactive - Promotion will be created but not active'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="description" className="block text-sm font-medium text-text-secondary">Description</label>
-                    <textarea
-                      id="description"
-                      {...register('description', { required: true })}
-                      rows={3}
-                      className={`w-full p-2 border rounded-md focus:ring-pharma-green focus:border-pharma-green transition-colors ${
-                        formErrors.description ? 'border-state-error ring-1 ring-state-error' : 'border-pharma-gray-darker'
-                      }`}
-                    />
-                    {formErrors.description && <p className="text-state-error text-xs">{formErrors.description}</p>}
+                  {/* Promotion Settings - Date Range and Usage Limits */}
+                  <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+                    <h2 className="text-lg font-semibold text-text-primary mb-5">Promotion Settings</h2>
+                    
+                    {/* Date Range */}
+                    <div className="mb-6">
+                      <h3 className="text-md font-medium text-text-primary mb-3">Promotion Period</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label htmlFor="start_datetime" className="block text-sm font-medium text-text-secondary mb-2">Start Date & Time</label>
+                          <input
+                            type="datetime-local"
+                            id="start_datetime"
+                            {...register('start_datetime')}
+                            className={`block w-full rounded-md shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm ${
+                              formErrors.start_datetime ? 'border-red-500' : 'border-pharma-gray-dark'
+                            }`}
+                          />
+                          {formErrors.start_datetime && (
+                            <p className="mt-1 text-sm text-red-600">{formErrors.start_datetime}</p>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="end_datetime" className="block text-sm font-medium text-text-secondary mb-2">End Date & Time</label>
+                          <input
+                            type="datetime-local"
+                            id="end_datetime"
+                            {...register('end_datetime')}
+                            className={`block w-full rounded-md shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm ${
+                              formErrors.end_datetime ? 'border-red-500' : 'border-pharma-gray-dark'
+                            }`}
+                          />
+                          {formErrors.end_datetime && (
+                            <p className="mt-1 text-sm text-red-600">{formErrors.end_datetime}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Usage Limits */}
+                    <div>
+                      <h3 className="text-md font-medium text-text-primary mb-3">Usage Limits</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                          <label htmlFor="min_cart_qty" className="block text-sm font-medium text-text-secondary mb-2">Min. Cart Quantity</label>
+                          <input
+                            type="number"
+                            id="min_cart_qty"
+                            min="1"
+                            {...register('min_cart_qty')}
+                            className="block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm"
+                          />
+                          <p className="mt-1 text-xs text-text-muted">Minimum quantity required in cart</p>
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="max_uses_per_user" className="block text-sm font-medium text-text-secondary mb-2">Max Uses Per User</label>
+                          <input
+                            type="number"
+                            id="max_uses_per_user"
+                            min="1"
+                            {...register('max_uses_per_user')}
+                            className="block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm"
+                          />
+                          <p className="mt-1 text-xs text-text-muted">Maximum redemptions per customer</p>
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="total_uses_limit" className="block text-sm font-medium text-text-secondary mb-2">Total Uses Limit</label>
+                          <input
+                            type="number"
+                            id="total_uses_limit"
+                            min="1"
+                            {...register('total_uses_limit')}
+                            className="block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm"
+                          />
+                          <p className="mt-1 text-xs text-text-muted">Global limit on total redemptions</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+
                 </div>
 
                 {/* Products Selection */}
-                <div className="bg-background-light p-6 rounded-lg border border-pharma-gray-dark shadow-card">
+                <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card">
                   <h2 className="text-lg font-semibold text-text-primary mb-5">
                     {applyTo === 'PRODUCT' ? 'Product Selection' : 'Bundle Creation'}
                   </h2>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     <label className="block text-sm font-medium text-text-secondary">
                       {applyTo === 'PRODUCT' ? 'Select Products' : 'Create Bundle'}
                     </label>
-                    <div className="border border-pharma-gray-darker rounded-md p-4 bg-white">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={productSearch}
-                          onChange={(e) => {
-                            setProductSearch(e.target.value);
-                            searchProducts();
-                          }}
-                          placeholder="Search products by name or code..."
-                          className="w-full p-2 border border-pharma-gray-darker rounded-md focus:ring-pharma-green focus:border-pharma-green transition-colors"
-                        />
-                        {searchResults.length > 0 && showSearchResults && (
-                          <div className="absolute z-10 w-full mt-1 bg-white shadow-elevated rounded-md border border-pharma-gray-dark max-h-60 overflow-y-auto">
-                            {searchResults.map(product => (
-                              <div 
-                                key={product.productCode}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  addProduct(product);
-                                }}
-                                className="p-2 hover:bg-pharma-gray cursor-pointer transition-colors"
-                              >
-                                {product.name} <span className="text-text-light text-sm">({product.productCode})</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                    
+                    {/* Search box with icon */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-pharma-gray-darker" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
                       </div>
+                      <input
+                        type="text"
+                        value={productSearch}
+                        onChange={(e) => {
+                          setProductSearch(e.target.value);
+                          searchProducts();
+                        }}
+                        placeholder="Search products by name or code..."
+                        className="pl-10 w-full p-2 border border-pharma-gray-darker rounded-md focus:ring-pharma-green focus:border-pharma-green transition-colors"
+                      />
+                    </div>
 
-                      {selectedProducts.length > 0 ? (
-                        <div className="mt-4 space-y-2">
-                          <h3 className="font-medium text-sm text-text-secondary">Selected Products</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProducts.map(product => (
-                              <div 
-                                key={product.productCode}
-                                className="bg-pharma-gray border border-pharma-gray-dark rounded-full px-3 py-1 text-sm flex items-center"
-                              >
-                                <span className="text-text-secondary">{product.name}</span>
-                                <button 
-                                  onClick={() => removeProduct(product.productCode)} 
-                                  className="ml-2 text-state-error hover:text-red-700"
-                                  type="button"
-                                >
-                                  &times;
-                                </button>
-                              </div>
-                            ))}
-                          </div>
+                    {/* Search results dropdown */}
+                    <div className="relative">
+                      {searchResults.length > 0 && showSearchResults && (
+                        <div className="absolute z-10 w-full mt-1 bg-white shadow-elevated rounded-md border border-pharma-gray-dark max-h-60 overflow-y-auto">
+                          {searchResults.map(product => (
+                            <div 
+                              key={product.productCode}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addProduct(product);
+                              }}
+                              className="p-3 hover:bg-pharma-gray cursor-pointer transition-colors border-b border-pharma-gray last:border-0"
+                            >
+                              <div className="font-medium">{product.name}</div>
+                              <div className="text-text-muted text-sm">Code: {product.productCode}</div>
+                            </div>
+                          ))}
                         </div>
-                      ) : (
-                        <p className="mt-4 text-sm text-text-muted">No products selected</p>
                       )}
+                    </div>
+
+                    {/* Selected products */}
+                    <div className="mt-4 border border-pharma-gray-dark rounded-md p-4 bg-pharma-gray-light">
+                      <h3 className="font-medium text-sm text-text-secondary mb-3">Selected Products</h3>
                       
-                      {formErrors.products && <p className="text-state-error text-xs mt-2">{formErrors.products}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Usage Limits */}
-                <div className="bg-background-light p-6 rounded-lg border border-pharma-gray-dark shadow-card">
-                  <h2 className="text-lg font-semibold text-text-primary mb-5">Usage Limits</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label htmlFor="min_cart_qty" className="block text-sm font-medium text-text-secondary">Min Cart Quantity</label>
-                      <input
-                        type="number"
-                        id="min_cart_qty"
-                        {...register('min_cart_qty', { required: true, min: 1 })}
-                        className="w-full p-2 border border-pharma-gray-darker rounded-md focus:ring-pharma-green focus:border-pharma-green bg-white"
-                      />
-                      <p className="text-xs text-text-muted">Minimum quantity required in cart</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="max_uses_per_user" className="block text-sm font-medium text-text-secondary">Max Uses Per User</label>
-                      <input
-                        type="number"
-                        id="max_uses_per_user"
-                        {...register('max_uses_per_user', { required: true, min: 1 })}
-                        className="w-full p-2 border border-pharma-gray-darker rounded-md focus:ring-pharma-green focus:border-pharma-green bg-white"
-                      />
-                      <p className="text-xs text-text-muted">Maximum redemptions per customer</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="total_uses_limit" className="block text-sm font-medium text-text-secondary">Total Uses Limit</label>
-                      <input
-                        type="number"
-                        id="total_uses_limit"
-                        {...register('total_uses_limit', { required: true, min: 1 })}
-                        className="w-full p-2 border border-pharma-gray-darker rounded-md focus:ring-pharma-green focus:border-pharma-green bg-white"
-                      />
-                      <p className="text-xs text-text-muted">Global limit on total redemptions</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Date Range */}
-                <div className="bg-background-light p-6 rounded-lg border border-pharma-gray-dark shadow-card">
-                  <h2 className="text-lg font-semibold text-text-primary mb-5">Promotion Period</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label htmlFor="start_datetime" className="block text-sm font-medium text-text-secondary">Start Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        id="start_datetime"
-                        {...register('start_datetime', { required: true })}
-                        className={`w-full p-2 border rounded-md focus:ring-pharma-green focus:border-pharma-green bg-white ${
-                          formErrors.start_datetime ? 'border-state-error ring-1 ring-state-error' : 'border-pharma-gray-darker'
-                        }`}
-                      />
-                      {formErrors.start_datetime && <p className="text-state-error text-xs">{formErrors.start_datetime}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="end_datetime" className="block text-sm font-medium text-text-secondary">End Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        id="end_datetime"
-                        {...register('end_datetime', { required: true })}
-                        className={`w-full p-2 border rounded-md focus:ring-pharma-green focus:border-pharma-green bg-white ${
-                          formErrors.end_datetime ? 'border-state-error ring-1 ring-state-error' : 'border-pharma-gray-darker'
-                        }`}
-                      />
-                      {formErrors.end_datetime && <p className="text-state-error text-xs">{formErrors.end_datetime}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                {/* File Upload */}
-                <div className="bg-background-light p-6 rounded-lg border border-pharma-gray-dark shadow-card">
-                  <h2 className="text-lg font-semibold text-text-primary mb-5">Promotional Materials</h2>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="files" className="block text-sm font-medium text-text-secondary">Upload Images or PDFs</label>
-                    <div className="border-2 border-dashed border-pharma-gray-dark p-6 rounded-md text-center bg-pharma-gray-light transition-colors hover:bg-pharma-gray cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                      <input 
-                        ref={fileInputRef}
-                        type="file"
-                        id="files"
-                        multiple
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        accept="image/*,.pdf"
-                      />
-                      {formFiles.length === 0 ? (
-                        <div className="space-y-1 text-center">
-                          <div className="mx-auto h-12 w-12 text-pharma-gray-darker">
-                            <svg className="h-8 w-8 mx-auto" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                              <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </div>
-                          <div className="text-sm text-text-secondary">
-                            <span className="font-medium text-pharma-green hover:text-pharma-green-light">Upload files</span>
-                            <span> or drag and drop</span>
-                          </div>
-                          <p className="text-xs text-text-muted">PNG, JPG, GIF, PDF up to 10MB</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {formFiles.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between bg-pharma-gray p-2 rounded border border-pharma-gray-dark">
-                              <div className="flex items-center">
-                                <span className="text-sm truncate text-text-primary">{file.name}</span>
-                                <span className="text-xs text-text-muted ml-2">({formatFileSize(file.size)})</span>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeFile(index);
-                                }}
+                      {selectedProducts.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProducts.map(product => (
+                            <div 
+                              key={product.productCode}
+                              className="bg-white border border-pharma-gray-dark rounded-full px-3 py-1.5 text-sm flex items-center shadow-sm"
+                            >
+                              <span className="text-text-primary font-medium">{product.name}</span>
+                              <span className="text-text-muted text-xs ml-1.5">({product.productCode})</span>
+                              <button 
+                                onClick={() => removeProduct(product.productCode)} 
+                                className="ml-2 text-pharma-gray-darker hover:text-red-500 transition-colors"
                                 type="button"
-                                className="text-state-error hover:text-red-700"
                               >
-                                &times;
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                               </button>
                             </div>
                           ))}
-                          <button
+                        </div>
+                      ) : (
+                        <p className="text-sm text-text-muted py-2">No products selected. Use the search box above to find and add products.</p>
+                      )}
+                      
+                      {formErrors.products && (
+                        <p className="mt-2 text-sm text-red-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          {formErrors.products}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="text-sm text-pharma-gray-darker mt-2">
+                      <p>
+                        <span className="font-medium">Tip:</span> {applyTo === 'PRODUCT' 
+                          ? 'Select multiple products to apply the same discount to all of them.' 
+                          : 'Create a bundle by selecting multiple products that will be sold together.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Terms and Conditions */}
+                <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+                  <h2 className="text-lg font-semibold text-text-primary mb-5">Terms and Conditions</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="terms">
+                        Terms and Conditions Text
+                      </label>
+                      <textarea
+                        id="terms"
+                        rows={6}
+                        className="block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm"
+                        placeholder="Enter terms and conditions for this promotion"
+                        {...register('terms_and_conditions')}
+                      ></textarea>
+                      <p className="mt-1 text-sm text-text-muted">
+                        Specify any conditions, restrictions, or requirements that customers should know.
+                      </p>
+                    </div>
+                    <div>
+                      <div className="mb-2 text-sm font-medium text-text-secondary">Upload Terms Document (Optional)</div>
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="flex-1">
+                          <label htmlFor="terms-file" className="block w-full px-4 py-2 bg-pharma-gray-light border border-pharma-gray-dark rounded-md cursor-pointer hover:bg-pharma-gray transition-colors text-center text-sm">
+                            <span className="text-text-secondary">Select Terms Document</span>
+                            <input
+                              type="file"
+                              id="terms-file"
+                              className="hidden"
+                              accept=".txt,.pdf,.docx"
+                              onChange={handleTermsFileUpload}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      {termsFile && (
+                        <div className="mt-2 p-3 bg-pharma-gray-light rounded-md flex items-center justify-between">
+                          <div className="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-pharma-green-dark mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <div className="overflow-hidden">
+                              <p className="text-sm font-medium text-text-primary truncate">{termsFile.name}</p>
+                              <p className="text-xs text-text-muted">{formatFileSize(termsFile.size)}</p>
+                            </div>
+                          </div>
+                          <button 
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              fileInputRef.current?.click();
+                            onClick={() => {
+                              setTermsFile(null);
+                              setValue('terms_file', undefined);
                             }}
-                            className="text-sm text-pharma-green hover:text-pharma-green-light mt-3"
+                            className="ml-2 text-pharma-gray-darker hover:text-red-500 transition-colors"
                           >
-                            Add more files
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                           </button>
                         </div>
                       )}
+                      <p className="mt-3 text-sm text-text-muted">
+                        Upload .txt, .pdf or .docx file (max 2MB).
+                      </p>
                     </div>
                   </div>
+                </div>
+
+                {/* Promotion Rules */}
+                <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+                  <h2 className="text-lg font-semibold text-text-primary mb-5">Promotion Rules</h2>
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="rules">
+                      Specific Rules for Redeeming
+                    </label>
+                    <textarea
+                      id="rules"
+                      rows={4}
+                      className="block w-full rounded-md border-pharma-gray-dark shadow-sm focus:border-pharma-green focus:ring-pharma-green sm:text-sm"
+                      placeholder="Enter specific rules for redeeming this promotion"
+                      {...register('rules')}
+                    ></textarea>
+                    <p className="mt-1 text-sm text-text-muted">
+                      Explain any special procedures or steps customers need to follow to redeem this promotion.
+                    </p>
+                  </div>
+                </div>
+
+                {/* File uploads */}
+                <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
+                  <h2 className="text-lg font-semibold text-text-primary mb-5">Promotional Materials</h2>
+                  
+                  <div className="border-2 border-dashed border-pharma-gray-dark rounded-lg p-6 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-pharma-gray-dark mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <p className="text-sm font-medium text-text-primary mb-1">Drag and drop files here</p>
+                      <p className="text-xs text-text-muted mb-3">or</p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark focus:outline-none transition-colors"
+                      >
+                        Select Files
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        multiple
+                        onChange={handleFileUpload}
+                        accept="image/*,.pdf"
+                      />
+                      <p className="text-xs text-text-muted mt-3">PNG, JPG, GIF, PDF up to 10MB</p>
+                    </div>
+                  </div>
+                  
+                  {/* Upload Progress */}
+                  {fileUploading && (
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-text-secondary">Uploading...</p>
+                        <p className="text-xs text-text-muted">{uploadProgress}%</p>
+                      </div>
+                      <div className="w-full bg-pharma-gray-dark rounded-full h-2">
+                        <div 
+                          className="bg-pharma-green h-2 rounded-full" 
+                          style={{ width: `${uploadProgress}%` }} 
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* File Preview */}
+                  {formFiles.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-medium text-text-secondary mb-3">Uploaded Files ({formFiles.length})</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {formFiles.map((file, index) => (
+                          <div key={index} className="group relative border border-pharma-gray rounded-md overflow-hidden shadow-sm">
+                            <div className="h-36 bg-pharma-gray-light flex items-center justify-center">
+                              {file.type.includes('image') ? (
+                                <div className="w-full h-full bg-pharma-gray-light flex items-center justify-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-pharma-green-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                              ) : (
+                                <div className="text-center p-4">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-pharma-green-dark mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <p className="mt-2 text-sm font-medium text-pharma-green">{file.type.split('/')[1]?.toUpperCase() || 'File'}</p>
+                                </div>
+                              )}
+                              <button 
+                                type="button"
+                                onClick={() => removeFile(index)}
+                                className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm text-red-500 hover:text-red-700 transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="p-3 border-t border-pharma-gray-dark bg-white">
+                              <p className="text-sm font-medium text-text-primary truncate">{file.name}</p>
+                              <p className="text-xs text-text-muted">{formatFileSize(file.size)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit Button */}
@@ -724,82 +1108,144 @@ export default function PromotionsPage() {
                   </button>
                 </div>
                 
-                {promotions.length === 0 ? (
-                  <div className="bg-white border border-pharma-gray-dark rounded-lg p-8 text-center">
-                    <svg className="mx-auto h-12 w-12 text-pharma-gray-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <h3 className="mt-4 text-lg font-medium text-text-secondary">No promotions found</h3>
-                    <p className="mt-2 text-sm text-text-muted">Get started by creating a new promotion.</p>
-                    <button
-                      onClick={() => setActiveTab('create')}
-                      className="mt-4 px-4 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pharma-green shadow-sm transition-colors"
-                    >
-                      Create Promotion
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-white border border-pharma-gray-dark rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-pharma-gray-dark">
-                      <thead className="bg-pharma-gray-dark">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Discount</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Duration</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-pharma-gray-dark">
-                        {promotions.map((promotion) => (
-                          <tr key={promotion.id} className="hover:bg-pharma-gray-light transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Link href={`/promotions/${promotion.id}`}>
-                                <div className="text-sm font-medium text-text-primary hover:text-pharma-green hover:underline cursor-pointer">{promotion.name}</div>
-                              </Link>
-                              <div className="text-xs text-text-muted mt-1">{promotion.description && promotion.description.length > 40 ? `${promotion.description.substring(0, 40)}...` : promotion.description}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                promotion.apply_to === 'PRODUCT' 
-                                  ? 'bg-blue-100 text-blue-800' 
-                                  : 'bg-purple-100 text-purple-800'
-                              }`}>
-                                {promotion.apply_to}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                              {promotion.discount_value}{promotion.discount_type === 'PERCENTAGE' ? '%' : ' KSH'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                              <div>{new Date(promotion.start_datetime).toLocaleDateString()}</div>
-                              <div className="text-xs text-text-muted">to {new Date(promotion.end_datetime).toLocaleDateString()}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                promotion.is_active 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {promotion.is_active ? 'Active' : 'Inactive'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <Link href={`/promotions/${promotion.id}`}>
-                                <span className="text-pharma-blue hover:text-blue-700 cursor-pointer">View</span>
-                              </Link>
-                              <button 
-                                onClick={() => handleDeletePromotion(promotion.id || '')}
-                                className="text-red-600 hover:text-red-900 ml-4"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {/* Promotions List Tab */}
+                {activeTab === 'list' && (
+                  <div className="bg-white rounded-lg shadow-card p-6">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                      <h3 className="text-xl font-semibold text-text-primary mb-4 md:mb-0">Promotions List</h3>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={handleRefresh}
+                          className="px-3 py-1 rounded-md text-sm font-medium bg-pharma-gray-light text-text-secondary hover:bg-pharma-gray-dark transition-colors mr-2"
+                        >
+                          <span className="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Refresh
+                          </span>
+                        </button>
+                        <button 
+                          onClick={() => handleFilterChange('all')}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                            activeFilter === 'all' 
+                              ? 'bg-pharma-green text-white' 
+                              : 'bg-pharma-gray text-text-secondary hover:bg-pharma-gray-dark'
+                          }`}
+                        >
+                          All
+                        </button>
+                        <button 
+                          onClick={() => handleFilterChange('active')}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                            activeFilter === 'active' 
+                              ? 'bg-green-600 text-white' 
+                              : 'bg-green-100 text-green-800 hover:bg-green-200'
+                          }`}
+                        >
+                          Active
+                        </button>
+                        <button 
+                          onClick={() => handleFilterChange('expired')}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                            activeFilter === 'expired' 
+                              ? 'bg-red-600 text-white' 
+                              : 'bg-red-100 text-red-800 hover:bg-red-200'
+                          }`}
+                        >
+                          Expired
+                        </button>
+                        <button 
+                          onClick={() => handleFilterChange('inactive')}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                            activeFilter === 'inactive' 
+                              ? 'bg-yellow-600 text-white' 
+                              : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                          }`}
+                        >
+                          Inactive
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {promotions.length === 0 ? (
+                      <div className="bg-white border border-pharma-gray-dark rounded-lg p-8 text-center">
+                        <svg className="mx-auto h-12 w-12 text-pharma-gray-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <h3 className="mt-4 text-lg font-medium text-text-secondary">No promotions found</h3>
+                        <p className="mt-2 text-sm text-text-muted">Get started by creating a new promotion.</p>
+                        <button
+                          onClick={() => setActiveTab('create')}
+                          className="mt-4 px-4 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pharma-green shadow-sm transition-colors"
+                        >
+                          Create Promotion
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-pharma-gray-dark rounded-lg overflow-hidden">
+                        <table className="min-w-full divide-y divide-pharma-gray-dark">
+                          <thead className="bg-pharma-gray-dark">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Name</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Type</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Discount</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Duration</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Status</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-pharma-gray-dark">
+                                {filteredPromotions.map((promotion) => (
+                              <tr key={promotion.id} className="hover:bg-pharma-gray-light transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <Link href={`/promotions/${promotion.id}`}>
+                                    <div className="text-sm font-medium text-text-primary hover:text-pharma-green hover:underline cursor-pointer">{promotion.name}</div>
+                                  </Link>
+                                  <div className="text-xs text-text-muted mt-1">{promotion.description && promotion.description.length > 40 ? `${promotion.description.substring(0, 40)}...` : promotion.description}</div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    promotion.apply_to === 'PRODUCT' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-purple-100 text-purple-800'
+                                  }`}>
+                                    {promotion.apply_to}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                                  {promotion.discount_value}{promotion.discount_type === 'PERCENTAGE' ? '%' : ' KSH'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                                  <div>{new Date(promotion.start_datetime).toLocaleDateString()}</div>
+                                  <div className="text-xs text-text-muted">to {new Date(promotion.end_datetime).toLocaleDateString()}</div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    promotion.is_active 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {promotion.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                  <Link href={`/promotions/${promotion.id}`}>
+                                    <span className="text-pharma-blue hover:text-blue-700 cursor-pointer">View</span>
+                                  </Link>
+                                  <button 
+                                    onClick={() => handleDeletePromotion(promotion.id || '')}
+                                    className="text-red-600 hover:text-red-900 ml-4"
+                                  >
+                                    Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -23,6 +23,18 @@ This project has been migrated from a Vue.js application to a modern React stack
 - **Form Validation**: Comprehensive input validation
 - **Component-based Architecture**: Reusable UI components
 - **Type-safe Development**: Full TypeScript integration
+- **SEO Optimized**: Custom head metadata and document setup
+- **Custom 404 Page**: User-friendly error handling
+
+### Promotions Management
+- Create and edit promotions with an intuitive interface
+- Support for different promotion types (product-specific and bundles)
+- Advanced product selection with search functionality
+- Flexible discount settings (percentage or fixed amount)
+- Configurable promotion validity periods with start/end dates
+- Set usage limits per user and total
+- Upload and manage promotional materials
+- Enable/disable promotions with a simple toggle
 
 ## Getting Started
 
@@ -60,15 +72,21 @@ yarn dev
 ```
 pharma-nextjs/
 ├── public/             # Static assets
+│   └── images/         # Image assets including logos and icons
 ├── src/
 │   ├── components/     # React components
-│   │   ├── layout/     # Layout components
+│   │   ├── layout/     # Layout components including MainLayout
 │   │   └── ui/         # UI components
 │   ├── pages/          # Next.js pages
+│   │   ├── _app.tsx    # Custom App component with global metadata
+│   │   ├── _document.tsx # Custom Document for HTML structure
+│   │   ├── 404.tsx     # Custom 404 error page
+│   │   ├── index.tsx   # Dashboard home page
+│   │   └── promotions/ # Promotion management pages
 │   ├── styles/         # Global styles
 │   ├── types/          # TypeScript types
-│   └── utils/          # Utility functions
-├── .babelrc            # Babel configuration
+│   ├── utils/          # Utility functions
+│   └── middleware.ts   # Next.js middleware for routing
 ├── .gitignore          # Git ignore file
 ├── next.config.js      # Next.js configuration
 ├── package.json        # Project dependencies
@@ -98,6 +116,14 @@ pharma-nextjs/
 | Component Structure | Single File Components (.vue) | Functional Components (.tsx) |
 | Type Safety | Limited | Full TypeScript integration |
 
+## SEO and Metadata
+
+The application includes comprehensive SEO setup:
+- Custom `_document.tsx` with proper HTML structure
+- Global metadata in `_app.tsx` including title and Open Graph tags
+- Page-specific titles and descriptions
+- Favicon and app icons
+
 ## Build for Production
 
 ```bash
@@ -105,6 +131,13 @@ npm run build
 # or
 yarn build
 ```
+
+## Debug and Troubleshooting
+
+The application includes debugging tools:
+- Custom middleware for request tracking
+- Enhanced 404 error page with path information
+- Logging configuration in the Next.js config
 
 ## License
 

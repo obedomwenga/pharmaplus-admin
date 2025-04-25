@@ -101,6 +101,19 @@ export default function Dashboard() {
           </div>
         </div>
         
+        {/* Create Promotion Card */}
+        <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-8">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-text-primary">Create New Promotion</h3>
+              <p className="text-text-muted mt-2">Launch a new promotional campaign for products or bundles</p>
+            </div>
+            <Link href="/promotions" className="mt-4 md:mt-0 px-6 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark transition-colors">
+              Create Promotion
+            </Link>
+          </div>
+        </div>
+        
         {/* Recent Promotions */}
         <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card">
           <div className="flex justify-between items-center mb-6">

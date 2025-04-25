@@ -4,7 +4,7 @@
 The PharmaPlus Admin Dashboard is a web application for pharmacy administrators to manage various aspects of the pharmacy business, including promotions, products, orders, and users. This document outlines the technical requirements, functional specifications, and implementation details for the project.
 
 ## Tech Stack
-- **Framework**: Next.js (React framework)
+- **Framework**: Next.js 14 (React framework)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **State Management**: React Hooks
@@ -16,14 +16,21 @@ The PharmaPlus Admin Dashboard is a web application for pharmacy administrators 
 ```
 pharma-nextjs/
 ├── public/             # Static assets
+│   └── images/         # Image assets including logos and icons
 ├── src/
 │   ├── components/     # React components
-│   │   ├── layout/     # Layout components
+│   │   ├── layout/     # Layout components including MainLayout
 │   │   └── ui/         # UI components
 │   ├── pages/          # Next.js pages
+│   │   ├── _app.tsx    # Custom App component with global metadata
+│   │   ├── _document.tsx # Custom Document for HTML structure
+│   │   ├── 404.tsx     # Custom 404 error page
+│   │   ├── index.tsx   # Dashboard home page
+│   │   └── promotions/ # Promotion management pages
 │   ├── styles/         # Global styles
 │   ├── types/          # TypeScript types
-│   └── utils/          # Utility functions
+│   ├── utils/          # Utility functions
+│   └── middleware.ts   # Next.js middleware for routing
 ├── .gitignore          # Git ignore file
 ├── next.config.js      # Next.js configuration
 ├── package.json        # Project dependencies
@@ -37,17 +44,22 @@ pharma-nextjs/
 ## Functional Requirements
 
 ### Dashboard
-- Display summary of key metrics (sales, orders, etc.)
+- Display summary of key metrics (total promotions, active promotions, expiring soon)
 - Quick access to all major sections
+- Recent promotions listing with status indicators
+- Create promotion shortcut
 
 ### Promotions Management
 - Create, view, edit, and delete promotional offers
 - Configure different types of promotions (product-specific or bundle)
+- Advanced product selection with search functionality
 - Set discount types (percentage or fixed amount)
-- Define promotion validity period
-- Set usage limits (per user and total)
+- Define promotion validity period with date and time pickers
+- Set usage limits (per user, minimum cart quantity, and total uses)
 - Upload promotional materials (images/PDFs)
-- Activate/deactivate promotions
+- Activate/deactivate promotions with toggle switch
+- Filter and sort promotions by various criteria
+- View detailed promotion statistics
 
 ### Products Management (Future Implementation)
 - Product listing with search and filter
@@ -83,12 +95,19 @@ pharma-nextjs/
 - Intuitive navigation with clear information hierarchy
 - Consistent UI elements and patterns
 - Helpful error messages and validation feedback
+- Collapsible sidebar for more screen space
 
 ### Accessibility
 - Semantic HTML elements
 - ARIA attributes where necessary
 - Keyboard navigation support
 - Color contrast that meets WCAG guidelines
+
+### SEO
+- Custom document structure with proper metadata
+- Page-specific titles and descriptions
+- Open Graph tags for social sharing
+- Favicon and app icons
 
 ## UI Design Guidelines
 
@@ -114,9 +133,34 @@ pharma-nextjs/
 - Toggle switches for boolean options
 - Modal dialogs for confirmations
 - Dropdown menus for selections
+- Date and time pickers for scheduling
+- Search interfaces with dropdown results
+
+## Implemented Features
+
+### General
+- Dashboard home page with statistics and recent promotions
+- Main layout with collapsible sidebar navigation
+- Responsive design for all screen sizes
+- SEO optimization with custom document and app components
+- Custom 404 error page with debugging information
+- Middleware for request tracking and debugging
+
+### Promotions Management
+- Full CRUD operations for promotions
+- Intuitive promotion creation form with sections:
+  - Basic information (name, description, type)
+  - Product selection with search functionality
+  - Discount settings (type and value)
+  - Promotion period with date/time pickers
+  - Usage limits and restrictions
+  - Status toggle (active/inactive)
+- Promotion listing with filtering options
+- Promotion details view with all information
+- Edit capability for existing promotions
 
 ## API Integration
-The application will communicate with a backend API (to be implemented). Key endpoints will include:
+The application currently uses localStorage for data persistence (temporary solution). Future integration with a backend API will include:
 
 - `/api/promotions` - CRUD operations for promotions
 - `/api/products` - CRUD operations for products (future)
@@ -142,6 +186,12 @@ The application will communicate with a backend API (to be implemented). Key end
 - Image optimization
 - Lazy loading of off-screen content
 - Memoization of expensive calculations
+
+## Debugging Tools
+- Custom middleware for request path logging
+- Enhanced 404 page with detailed error information
+- Console logging for key operations
+- Configurable logging levels in Next.js config
 
 ## Deployment (Future Implementation)
 - CI/CD pipeline using GitHub Actions

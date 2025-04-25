@@ -1,5 +1,6 @@
 export type DiscountType = 'PERCENTAGE' | 'FIXED';
 export type ApplyToType = 'PRODUCT' | 'BUNDLE';
+export type PromotionType = 'PHARMAPLUS' | 'PARTNER';
 
 export interface Product {
   id: number;
@@ -21,10 +22,19 @@ export interface AlertMessage {
   type: 'success' | 'error';
 }
 
+export interface FileMetadata {
+  name: string;
+  size: number;
+  type: string;
+}
+
 export interface PromotionFormData {
   id?: string;
   name: string;
   description: string;
+  promotion_type: PromotionType;
+  partner_name?: string;
+  partner_logo?: File | FileMetadata;
   discount_type: DiscountType;
   discount_value: number;
   apply_to: ApplyToType;
@@ -36,7 +46,10 @@ export interface PromotionFormData {
   start_datetime: string;
   end_datetime: string;
   is_active: boolean;
-  files: File[];
+  files: (File | FileMetadata)[];
+  terms_and_conditions?: string;
+  terms_file?: FileMetadata;
+  rules?: string;
   createdAt?: string;
   claimed?: number;
 } 

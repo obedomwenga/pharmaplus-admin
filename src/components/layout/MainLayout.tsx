@@ -64,7 +64,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           )}
           <button 
             onClick={toggleSidebar}
-            className={`p-1 rounded-full hover:bg-pharma-green-light/20 transition-colors ${sidebarCollapsed ? 'mt-1' : ''}`}
+            className={`p-1 rounded-full hover:bg-pharma-green-light/20 transition-colors ${sidebarCollapsed ? 'absolute right-2 top-4' : ''}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               {sidebarCollapsed ? (
@@ -75,57 +75,77 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </svg>
           </button>
         </div>
-        <nav className="mt-6 px-4">
+        <nav className={`mt-6 ${sidebarCollapsed ? 'px-2' : 'px-4'}`}>
           <div className="space-y-4">
             {/* Navigation Links */}
             <Link href="/" 
-                  className={`block py-2.5 px-4 rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
+                  className={`block py-2.5 ${sidebarCollapsed ? 'px-2' : 'px-4'} rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
                     isActive('/') ? 'bg-pharma-green-light/20' : ''
                   }`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-              </svg>
-              {!sidebarCollapsed && <span>Dashboard</span>}
+              <div className={`${sidebarCollapsed ? 'flex justify-center items-center w-full' : ''}`}>
+                <div className={`${sidebarCollapsed ? 'bg-pharma-green-light/20 p-2 rounded-lg' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`${sidebarCollapsed ? 'h-6 w-6' : 'h-5 w-5 mr-3'}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                  </svg>
+                </div>
+                {!sidebarCollapsed && <span>Dashboard</span>}
+              </div>
             </Link>
 
             <Link href="/promotions"
-                  className={`block py-2.5 px-4 rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
+                  className={`block py-2.5 ${sidebarCollapsed ? 'px-2' : 'px-4'} rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
                     isActive('/promotions') ? 'bg-pharma-green-light/20' : ''
                   }`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z" clipRule="evenodd" />
-              </svg>
-              {!sidebarCollapsed && <span>Promotions</span>}
+              <div className={`${sidebarCollapsed ? 'flex justify-center items-center w-full' : ''}`}>
+                <div className={`${sidebarCollapsed ? 'bg-pharma-green-light/20 p-2 rounded-lg' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`${sidebarCollapsed ? 'h-6 w-6' : 'h-5 w-5 mr-3'}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                {!sidebarCollapsed && <span>Promotions</span>}
+              </div>
             </Link>
 
             <Link href="/products"
-                  className={`block py-2.5 px-4 rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
+                  className={`block py-2.5 ${sidebarCollapsed ? 'px-2' : 'px-4'} rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
                     isActive('/products') ? 'bg-pharma-green-light/20' : ''
                   }`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a1 1 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z" />
-              </svg>
-              {!sidebarCollapsed && <span>Products</span>}
+              <div className={`${sidebarCollapsed ? 'flex justify-center items-center w-full' : ''}`}>
+                <div className={`${sidebarCollapsed ? 'bg-pharma-green-light/20 p-2 rounded-lg' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`${sidebarCollapsed ? 'h-6 w-6' : 'h-5 w-5 mr-3'}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a1 1 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z" />
+                  </svg>
+                </div>
+                {!sidebarCollapsed && <span>Products</span>}
+              </div>
             </Link>
 
             <Link href="/orders"
-                  className={`block py-2.5 px-4 rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
+                  className={`block py-2.5 ${sidebarCollapsed ? 'px-2' : 'px-4'} rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
                     isActive('/orders') ? 'bg-pharma-green-light/20' : ''
                   }`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-              </svg>
-              {!sidebarCollapsed && <span>Orders</span>}
+              <div className={`${sidebarCollapsed ? 'flex justify-center items-center w-full' : ''}`}>
+                <div className={`${sidebarCollapsed ? 'bg-pharma-green-light/20 p-2 rounded-lg' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`${sidebarCollapsed ? 'h-6 w-6' : 'h-5 w-5 mr-3'}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                  </svg>
+                </div>
+                {!sidebarCollapsed && <span>Orders</span>}
+              </div>
             </Link>
 
             <Link href="/users"
-                  className={`block py-2.5 px-4 rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
+                  className={`block py-2.5 ${sidebarCollapsed ? 'px-2' : 'px-4'} rounded transition-colors hover:bg-pharma-green-light/20 flex items-center ${
                     isActive('/users') ? 'bg-pharma-green-light/20' : ''
                   }`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-              </svg>
-              {!sidebarCollapsed && <span>Users</span>}
+              <div className={`${sidebarCollapsed ? 'flex justify-center items-center w-full' : ''}`}>
+                <div className={`${sidebarCollapsed ? 'bg-pharma-green-light/20 p-2 rounded-lg' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`${sidebarCollapsed ? 'h-6 w-6' : 'h-5 w-5 mr-3'}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                  </svg>
+                </div>
+                {!sidebarCollapsed && <span>Users</span>}
+              </div>
             </Link>
           </div>
         </nav>

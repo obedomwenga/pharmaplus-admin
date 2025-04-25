@@ -14,6 +14,7 @@ body {
   font-family: 'Inter', sans-serif;
   background-color: var(--background-color);
   color: var(--text-color);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .bg-primary {
@@ -69,17 +70,75 @@ h2.text-lg {
   line-height: 1.75rem;
 }
 
-/* Improve layout for mobile devices */
+/* Responsive table styles */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 14rem;
+  .responsive-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .responsive-table table {
+    width: 100%;
   }
   
-  .main-content {
-    margin-left: 14rem;
+  /* Make cards more compact on mobile */
+  .card-compact {
+    padding: 1rem !important;
+  }
+  
+  /* Adjust form layouts for mobile */
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  /* Reduce padding on small screens */
+  .mobile-p-4 {
+    padding: 1rem !important;
+  }
+  
+  /* Ensure fonts are readable on mobile */
+  body {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  h2 {
+    font-size: 1.25rem !important;
   }
 }
 
+/* Touch-friendly inputs */
+input, select, textarea, button {
+  font-size: 16px !important; /* Prevents zoom on focus in iOS */
+}
+
+/* Prevent text from overflowing on small screens */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Better tap targets for mobile */
+.mobile-tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive grids */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* Improve layout for mobile devices */
 @media (max-width: 640px) {
   .sidebar {
     width: 12rem;

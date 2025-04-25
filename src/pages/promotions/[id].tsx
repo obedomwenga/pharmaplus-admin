@@ -155,16 +155,16 @@ export default function PromotionDetails() {
       </Head>
       <div className="bg-background-light rounded-lg shadow">
         {/* Header with branded style */}
-        <div className="bg-pharma-green py-6 px-8 rounded-t-lg">
-          <div className="flex justify-between items-center">
+        <div className="bg-pharma-green py-4 md:py-6 px-4 md:px-8 rounded-t-lg">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-white">{promotion.name}</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-white">{promotion.name}</h1>
               <p className="text-green-100 mt-1 opacity-90">Promotion Details</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-wrap gap-2">
               <button 
                 onClick={handleRefresh}
-                className="px-4 py-2 bg-white text-pharma-green rounded-md hover:bg-green-50 flex items-center shadow-sm transition-colors"
+                className="px-3 py-2 bg-white text-pharma-green rounded-md hover:bg-green-50 flex items-center shadow-sm transition-colors text-sm"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -172,7 +172,7 @@ export default function PromotionDetails() {
                 Refresh
               </button>
               <Link href={`/promotions/edit/${promotion.id}`}>
-                <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 shadow-sm transition-colors flex items-center">
+                <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 shadow-sm transition-colors flex items-center text-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
@@ -180,7 +180,7 @@ export default function PromotionDetails() {
                 </span>
               </Link>
               <Link href="/promotions">
-                <span className="px-4 py-2 bg-white text-pharma-green rounded-md hover:bg-green-50 shadow-sm transition-colors flex items-center">
+                <span className="px-3 py-2 bg-white text-pharma-green rounded-md hover:bg-green-50 shadow-sm transition-colors flex items-center text-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
@@ -191,76 +191,78 @@ export default function PromotionDetails() {
           </div>
         </div>
         
-        <div className="p-6 md:p-8">
+        <div className="p-4 md:p-6 lg:p-8">
           {/* Alert Message */}
           {alertMessage && (
-            <div className={`mb-6 p-4 rounded-md ${
+            <div className={`mb-4 md:mb-6 p-4 rounded-md ${
               alertMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
               {alertMessage.message}
             </div>
           )}
           
-          {/* Status Card */}
-          <div className="bg-white p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-              <h2 className="text-xl font-semibold text-text-primary">Status Overview</h2>
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-text-secondary mr-2">Status:</span>
-                <button 
-                  onClick={toggleStatus}
-                  className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
-                >
-                  <span 
-                    className={`inline-flex absolute inset-0 ${
-                      promotion.is_active ? 'bg-green-100' : 'bg-gray-100'
-                    } rounded-full transition-colors`}
-                  />
-                  <span 
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm border ${
-                      promotion.is_active ? 'translate-x-6 border-green-500' : 'translate-x-1 border-gray-400'
-                    }`}
-                  />
-                </button>
-                <span className={`text-sm ${promotion.is_active ? 'text-green-600' : 'text-gray-500'}`}>
+          {/* Status & Controls */}
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-pharma-gray-dark shadow-card mb-4 md:mb-6">
+            <div className="flex flex-col md:flex-row justify-between mb-4">
+              <div className="flex items-center space-x-3 mb-4 md:mb-0">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  promotion.is_active 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
                   {promotion.is_active ? 'Active' : 'Inactive'}
                 </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  new Date(promotion.end_datetime) > new Date() 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {new Date(promotion.end_datetime) > new Date() ? 'Current' : 'Expired'}
+                </span>
+              </div>
+              <button
+                onClick={toggleStatus}
+                className={`px-4 py-2 rounded-md text-white ${
+                  promotion.is_active 
+                    ? 'bg-red-500 hover:bg-red-600' 
+                    : 'bg-green-500 hover:bg-green-600'
+                } transition-colors text-sm`}
+              >
+                {promotion.is_active ? 'Deactivate Promotion' : 'Activate Promotion'}
+              </button>
+            </div>
+            
+            {/* Progress bar */}
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-1">
+                <div className="text-sm text-text-secondary">Progress</div>
+                <div className="text-sm font-medium text-text-primary">{progressPercentage}%</div>
+              </div>
+              <div className="w-full bg-pharma-gray rounded-full h-2.5">
+                <div 
+                  className="bg-pharma-green h-2.5 rounded-full" 
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-text-muted mt-1">
+                <div>{new Date(promotion.start_datetime).toLocaleDateString()}</div>
+                <div>{new Date(promotion.end_datetime).toLocaleDateString()}</div>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Time remaining */}
-              <div className="bg-pharma-gray-light p-4 rounded-md">
-                <h3 className="text-sm font-medium text-text-secondary mb-1">Time Remaining</h3>
-                <p className="text-xl font-bold text-text-primary">{timeRemaining}</p>
-                <div className="mt-2 w-full bg-pharma-gray-dark rounded-full h-2.5">
-                  <div 
-                    className="bg-pharma-green h-2.5 rounded-full" 
-                    style={{ width: `${progressPercentage}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between mt-1 text-xs text-text-muted">
-                  <span>{new Date(promotion.start_datetime).toLocaleDateString()}</span>
-                  <span>{new Date(promotion.end_datetime).toLocaleDateString()}</span>
-                </div>
+            {/* Key metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
+              <div className="bg-pharma-gray-light rounded-lg p-3">
+                <div className="text-sm text-text-secondary">Time Remaining</div>
+                <div className="text-lg font-semibold text-text-primary">{timeRemaining}</div>
               </div>
-              
-              {/* Days active */}
-              <div className="bg-pharma-gray-light p-4 rounded-md">
-                <h3 className="text-sm font-medium text-text-secondary mb-1">Days Active</h3>
-                <p className="text-xl font-bold text-text-primary">{daysActive} days</p>
-                <p className="text-sm text-text-muted mt-1">
-                  Started on {new Date(promotion.start_datetime).toLocaleDateString()}
-                </p>
+              <div className="bg-pharma-gray-light rounded-lg p-3">
+                <div className="text-sm text-text-secondary">Days Active</div>
+                <div className="text-lg font-semibold text-text-primary">{daysActive} days</div>
               </div>
-              
-              {/* Usage stats */}
-              <div className="bg-pharma-gray-light p-4 rounded-md">
-                <h3 className="text-sm font-medium text-text-secondary mb-1">Usage</h3>
-                <p className="text-xl font-bold text-text-primary">{promotion.claimed || 0} / {promotion.total_uses_limit}</p>
-                <p className="text-sm text-text-muted mt-1">
-                  {promotion.max_uses_per_user} uses per customer allowed
-                </p>
+              <div className="bg-pharma-gray-light rounded-lg p-3">
+                <div className="text-sm text-text-secondary">Claimed</div>
+                <div className="text-lg font-semibold text-text-primary">{promotion.claimed || 0}</div>
               </div>
             </div>
           </div>

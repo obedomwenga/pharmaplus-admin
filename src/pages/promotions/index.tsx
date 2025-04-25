@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
@@ -32,7 +32,7 @@ const dummyProducts: Product[] = [
 
 export default function PromotionsPage() {
   // Active tab state
-  const [activeTab, setActiveTab] = useState<'create' | 'list'>('list');
+  const [activeTab, setActiveTab] = useState<'create' | 'list'>('create');
 
   // Form state using react-hook-form
   const { register, handleSubmit, setValue, watch, formState: { errors: formValidationErrors } } = useForm<PromotionFormData>({
@@ -79,14 +79,17 @@ export default function PromotionsPage() {
   
   // Promotions list state
   const [promotions, setPromotions] = useState<PromotionFormData[]>([]);
-  const [filteredPromotions, setFilteredPromotions] = useState<PromotionFormData[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'expired' | 'inactive'>('all');
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  
+  // Search and filter state for promotions list
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   
   // Load promotions from localStorage
   const loadPromotions = () => {
     const storedPromotions = getPromotions();
     setPromotions(storedPromotions);
-    applyFilter(storedPromotions, activeFilter);
   };
   
   // Handle refresh button click
@@ -97,33 +100,11 @@ export default function PromotionsPage() {
   
   // Apply filter to promotions
   const applyFilter = (promotionsList: PromotionFormData[], filter: string) => {
-    const now = new Date();
-    
-    switch(filter) {
-      case 'active':
-        setFilteredPromotions(promotionsList.filter(p => 
-          p.is_active && new Date(p.end_datetime) > now
-        ));
-        break;
-      case 'expired':
-        setFilteredPromotions(promotionsList.filter(p => 
-          new Date(p.end_datetime) < now
-        ));
-        break;
-      case 'inactive':
-        setFilteredPromotions(promotionsList.filter(p => 
-          !p.is_active && new Date(p.end_datetime) > now
-        ));
-        break;
-      case 'all':
-      default:
-        setFilteredPromotions(promotionsList);
-        break;
-    }
+    setStatusFilter(filter);
   };
   
   // Change filter
-  const handleFilterChange = (filter: 'all' | 'active' | 'expired' | 'inactive') => {
+  const handleFilterChange = (filter: string) => {
     setActiveFilter(filter);
     applyFilter(promotions, filter);
   };
@@ -441,6 +422,44 @@ export default function PromotionsPage() {
     };
   }, [showSearchResults]);
   
+  // Apply filters to promotions list
+  const filteredPromotions = useMemo(() => {
+    return promotions
+      .filter(promo => {
+        // Apply status filter
+        if (statusFilter !== 'all') {
+          const now = new Date();
+          const endDate = new Date(promo.end_datetime);
+          
+          if (statusFilter === 'active' && (!promo.is_active || endDate < now)) {
+            return false;
+          }
+          if (statusFilter === 'inactive' && promo.is_active) {
+            return false;
+          }
+          if (statusFilter === 'expired' && endDate >= now) {
+            return false;
+          }
+        }
+        
+        // Apply type filter
+        if (typeFilter !== 'all' && promo.apply_to !== typeFilter) {
+          return false;
+        }
+        
+        // Apply search term
+        if (searchTerm.trim() !== '') {
+          const searchLower = searchTerm.toLowerCase();
+          return (
+            promo.name.toLowerCase().includes(searchLower) ||
+            (promo.description && promo.description.toLowerCase().includes(searchLower))
+          );
+        }
+        
+        return true;
+      });
+  }, [promotions, searchTerm, statusFilter, typeFilter]);
+  
   // Render
   return (
     <>
@@ -449,17 +468,17 @@ export default function PromotionsPage() {
       </Head>
       <div className="bg-background-light rounded-lg shadow">
         {/* Header with branded style */}
-        <div className="bg-pharma-green py-6 px-8 rounded-t-lg">
-          <h1 className="text-2xl font-bold text-white">Promotions Management</h1>
+        <div className="bg-pharma-green py-4 md:py-6 px-4 md:px-8 rounded-t-lg">
+          <h1 className="text-xl md:text-2xl font-bold text-white">Promotions Management</h1>
           <p className="text-green-100 mt-1 opacity-90">Create and manage time-based promotions for products or bundles.</p>
         </div>
         
         {/* Tabs */}
-        <div className="bg-white border-b border-pharma-gray-dark">
-          <div className="px-8 flex space-x-8">
+        <div className="bg-white border-b border-pharma-gray-dark overflow-x-auto">
+          <div className="px-4 md:px-8 flex space-x-4 md:space-x-8">
             <button
               onClick={() => setActiveTab('create')}
-              className={`py-4 px-2 font-medium border-b-2 transition-colors ${
+              className={`py-3 md:py-4 px-2 text-sm md:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'create'
                   ? 'border-pharma-green text-pharma-green'
                   : 'border-transparent text-text-secondary hover:text-pharma-green hover:border-pharma-green-light'
@@ -469,7 +488,7 @@ export default function PromotionsPage() {
             </button>
             <button
               onClick={() => setActiveTab('list')}
-              className={`py-4 px-2 font-medium border-b-2 transition-colors ${
+              className={`py-3 md:py-4 px-2 text-sm md:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'list'
                   ? 'border-pharma-green text-pharma-green'
                   : 'border-transparent text-text-secondary hover:text-pharma-green hover:border-pharma-green-light'
@@ -481,7 +500,7 @@ export default function PromotionsPage() {
         </div>
 
         {/* Tab Content */}
-        <div className="p-6 md:p-8">
+        <div className="p-4 md:p-8">
           {activeTab === 'create' ? (
             <>
               {/* Form Title */}
@@ -1098,113 +1117,98 @@ export default function PromotionsPage() {
             <>
               {/* Promotions List View */}
               <div>
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
                   <h2 className="text-xl font-semibold text-text-primary">All Promotions</h2>
                   <button
                     onClick={() => setActiveTab('create')}
-                    className="px-4 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pharma-green shadow-sm transition-colors"
+                    className="px-4 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pharma-green shadow-sm transition-colors w-full md:w-auto"
                   >
                     Create New Promotion
                   </button>
                 </div>
                 
                 {/* Promotions List Tab */}
-                {activeTab === 'list' && (
-                  <div className="bg-white rounded-lg shadow-card p-6">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                      <h3 className="text-xl font-semibold text-text-primary mb-4 md:mb-0">Promotions List</h3>
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={handleRefresh}
-                          className="px-3 py-1 rounded-md text-sm font-medium bg-pharma-gray-light text-text-secondary hover:bg-pharma-gray-dark transition-colors mr-2"
-                        >
-                          <span className="flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Refresh
-                          </span>
-                        </button>
-                        <button 
-                          onClick={() => handleFilterChange('all')}
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            activeFilter === 'all' 
-                              ? 'bg-pharma-green text-white' 
-                              : 'bg-pharma-gray text-text-secondary hover:bg-pharma-gray-dark'
-                          }`}
-                        >
-                          All
-                        </button>
-                        <button 
-                          onClick={() => handleFilterChange('active')}
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            activeFilter === 'active' 
-                              ? 'bg-green-600 text-white' 
-                              : 'bg-green-100 text-green-800 hover:bg-green-200'
-                          }`}
-                        >
-                          Active
-                        </button>
-                        <button 
-                          onClick={() => handleFilterChange('expired')}
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            activeFilter === 'expired' 
-                              ? 'bg-red-600 text-white' 
-                              : 'bg-red-100 text-red-800 hover:bg-red-200'
-                          }`}
-                        >
-                          Expired
-                        </button>
-                        <button 
-                          onClick={() => handleFilterChange('inactive')}
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            activeFilter === 'inactive' 
-                              ? 'bg-yellow-600 text-white' 
-                              : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                          }`}
-                        >
-                          Inactive
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {promotions.length === 0 ? (
-                      <div className="bg-white border border-pharma-gray-dark rounded-lg p-8 text-center">
-                        <svg className="mx-auto h-12 w-12 text-pharma-gray-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <div className="bg-white rounded-lg shadow-card p-4 md:p-6">
+                  {/* Search and Filters */}
+                  <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="relative flex-grow">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                         </svg>
-                        <h3 className="mt-4 text-lg font-medium text-text-secondary">No promotions found</h3>
-                        <p className="mt-2 text-sm text-text-muted">Get started by creating a new promotion.</p>
-                        <button
-                          onClick={() => setActiveTab('create')}
-                          className="mt-4 px-4 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pharma-green shadow-sm transition-colors"
-                        >
-                          Create Promotion
-                        </button>
                       </div>
-                    ) : (
-                      <div className="bg-white border border-pharma-gray-dark rounded-lg overflow-hidden">
+                      <input
+                        type="text"
+                        placeholder="Search promotions..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-pharma-gray-dark rounded-md w-full focus:outline-none focus:ring-2 focus:ring-pharma-green focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-2 md:gap-4">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="border border-pharma-gray-dark rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pharma-green focus:border-transparent"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="expired">Expired</option>
+                      </select>
+                      <select
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        className="border border-pharma-gray-dark rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pharma-green focus:border-transparent"
+                      >
+                        <option value="all">All Types</option>
+                        <option value="PRODUCT">Product</option>
+                        <option value="BUNDLE">Bundle</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {promotions.length === 0 ? (
+                    <div className="bg-white border border-pharma-gray-dark rounded-lg p-8 text-center">
+                      <svg className="mx-auto h-12 w-12 text-pharma-gray-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h3 className="mt-4 text-lg font-medium text-text-secondary">No promotions found</h3>
+                      <p className="mt-2 text-sm text-text-muted">Get started by creating a new promotion.</p>
+                      <button
+                        onClick={() => setActiveTab('create')}
+                        className="mt-4 px-4 py-2 bg-pharma-green text-white rounded-md hover:bg-pharma-green-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pharma-green shadow-sm transition-colors"
+                      >
+                        Create Promotion
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-pharma-gray-dark rounded-lg overflow-hidden">
+                      <div className="responsive-table">
                         <table className="min-w-full divide-y divide-pharma-gray-dark">
                           <thead className="bg-pharma-gray-dark">
                             <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Name</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Type</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Discount</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Duration</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">Actions</th>
+                              <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Name</th>
+                              <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Type</th>
+                              <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Discount</th>
+                              <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Duration</th>
+                              <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Status</th>
+                              <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-pharma-gray-dark">
-                                {filteredPromotions.map((promotion) => (
+                            {filteredPromotions.map((promotion) => (
                               <tr key={promotion.id} className="hover:bg-pharma-gray-light transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                                   <Link href={`/promotions/${promotion.id}`}>
                                     <div className="text-sm font-medium text-text-primary hover:text-pharma-green hover:underline cursor-pointer">{promotion.name}</div>
                                   </Link>
-                                  <div className="text-xs text-text-muted mt-1">{promotion.description && promotion.description.length > 40 ? `${promotion.description.substring(0, 40)}...` : promotion.description}</div>
+                                  <div className="text-xs text-text-muted mt-1 md:hidden">
+                                    {new Date(promotion.start_datetime).toLocaleDateString()} - 
+                                    {new Date(promotion.end_datetime).toLocaleDateString()}
+                                  </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                     promotion.apply_to === 'PRODUCT' 
                                       ? 'bg-blue-100 text-blue-800' 
@@ -1213,14 +1217,14 @@ export default function PromotionsPage() {
                                     {promotion.apply_to}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                                <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
                                   {promotion.discount_value}{promotion.discount_type === 'PERCENTAGE' ? '%' : ' KSH'}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                                <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
                                   <div>{new Date(promotion.start_datetime).toLocaleDateString()}</div>
                                   <div className="text-xs text-text-muted">to {new Date(promotion.end_datetime).toLocaleDateString()}</div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                     promotion.is_active 
                                       ? 'bg-green-100 text-green-800' 
@@ -1229,7 +1233,7 @@ export default function PromotionsPage() {
                                     {promotion.is_active ? 'Active' : 'Inactive'}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <td className="px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                   <Link href={`/promotions/${promotion.id}`}>
                                     <span className="text-pharma-blue hover:text-blue-700 cursor-pointer">View</span>
                                   </Link>
@@ -1245,9 +1249,9 @@ export default function PromotionsPage() {
                           </tbody>
                         </table>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
